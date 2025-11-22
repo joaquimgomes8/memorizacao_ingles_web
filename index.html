@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memorização de Vocabulário</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        /* Estilo básico para o card virar */
+        .flip-card-inner {
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+            position: relative; /* Adicionado para garantir o posicionamento 3D */
+        }
+        .flip-card:hover .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+        .flip-card-front, .flip-card-back {
+            position: absolute; /* Usar absoluto para sobrepor e permitir o flip */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+        }
+        .flip-card-back {
+            transform: rotateY(180deg);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+    <!-- Main Application Container -->
+    <div id="app" class="w-full max-w-4xl bg-white shadow-2xl rounded-xl p-8 space-y-6">
+        <h1 class="text-3xl font-extrabold text-gray-900 text-center flex items-center justify-center">
+            <svg class="w-8 h-8 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.247m0-13C13.168 5.477 14.754 5 16.5 5s3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18s-3.332-.477-4.5-1.247"></path>
+            </svg>
+            Memorize Inglês
+        </h1>
+        
+        <!-- User ID Display (Removed complex auth status, now fixed ID) -->
+        <div id="user-info" class="text-xs text-right text-gray-500">
+            <span id="auth-status">Pronto (Modo Público)</span> | ID: <span id="user-id-display">PUBLIC_USER</span>
+        </div>
+
+        <!-- TABS Navigation -->
+        <div class="flex border-b border-gray-200">
+            <button id="tab-study" class="py-2 px-4 text-sm font-medium transition duration-150 ease-in-out border-b-2 border-indigo-600 text-indigo-600 hover:text-indigo-800">
+                Estudar (<span id="word-count">0</span>)
+            </button>
+            <button id="tab-add" class="py-2 px-4 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-gray-700 hover:border-gray-300 ml-4">
+                Adicionar Palavra
+            </button>
+        </div>
+
+        <!-- Study View (Default) -->
+        <div id="view-study" class="space-y-6">
+            <div id="flashcard-container" class="flex justify-center items-center h-64">
+                <div id="flashcard" class="flip-card w-full max-w-sm h-full rounded-xl shadow-lg bg-indigo-500 cursor-pointer">
+                    <div class="flip-card-inner flex items-center justify-center w-full h-full p-6">
+                        <!-- Card Front (English) -->
+                        <div class="flip-card-front absolute w-full h-full flex items-center justify-center p-6 rounded-xl bg-indigo-600 text-white text-3xl font-bold">
+                            Clique em 'Iniciar Estudo'
+                        </div>
+                        <!-- Card Back (Portuguese) -->
+                        <div class="flip-card-back absolute w-full h-full flex items-center justify-center p-6 rounded-xl bg-indigo-400 text-white text-xl font-medium">
+                            Tradução
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="study-controls" class="flex justify-center space-x-4">
+                <button id="btn-start" class="px-6 py-3 bg-green-500 text-white font-semibold rounded-lg shadow-md hover:bg-green-600 transition duration-150 ease-in-out transform hover:scale-105">
+                    Iniciar Estudo
+                </button>
+                <button id="btn-next" class="px-6 py-3 bg-indigo-500 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-600 transition duration-150 ease-in-out transform hover:scale-105 hidden">
+                    Próxima Palavra &raquo;
+                </button>
+            </div>
+        </div>
+
+        <!-- Add Word View -->
+        <div id="view-add" class="hidden space-y-4 max-w-md mx-auto p-6 border rounded-lg bg-gray-50 shadow-inner">
+            <h2 class="text-xl font-semibold text-gray-800">Adicionar Novo Termo</h2>
+            <input type="text" id="input-english" placeholder="Palavra em Inglês (Ex: Encompass)" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <input type="text" id="input-portuguese" placeholder="Tradução em Português (Ex: Abranger)" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            
+            <!-- Botão agora é habilitado imediatamente no JS -->
+            <button id="btn-add-word" class="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition duration-150 ease-in-out transform hover:scale-105">
+                Salvar Palavra
+            </button>
+            
+            <div id="add-message" class="text-sm text-center pt-2"></div>
+        </div>
+        
+        <!-- List View (Optional for checking data) -->
+        <div class="pt-6">
+            <h2 class="text-lg font-semibold text-gray-700">Minhas Palavras Salvas:</h2>
+            <ul id="word-list" class="mt-2 text-sm text-gray-600 max-h-40 overflow-y-auto border p-3 rounded-lg bg-gray-50">
+                <!-- Word items will be injected here -->
+            </ul>
+        </div>
+    </div>
+    
+    <!-- Modal para Mensagens (usado no lugar de alert()) -->
+    <div id="app-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full space-y-4">
+            <h3 id="modal-title" class="text-xl font-bold text-gray-900"></h3>
+            <p id="modal-body" class="text-gray-700"></p>
+            <button id="modal-close" class="w-full py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700">
+                Fechar
+            </button>
+        </div>
+    </div>
+
+    <!-- FIREBASE JS SDK -->
+    <script type="module">
+        // Global variables for Firebase Config (MUST BE USED)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            const firebaseConfig = {
+            apiKey: "AIzaSy...",
+            authDomain: "seu-projeto-123.firebaseapp.com",
+            projectId: "seu-projeto-123",
+            storageBucket: "...",
+            messagingSenderId: "...",
+            appId: "..."
+            };
+        
+        // Removed initialAuthToken since we are not authenticating
+
+        // Firebase Imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        // Removed Auth imports
+        import { getFirestore, collection, onSnapshot, query, addDoc, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // Ativa o log para depuração
+        setLogLevel('debug');
+        
+        // --- Core Application Logic ---
+
+        let db;
+        // Removido 'auth'
+        let userId = 'PUBLIC_USER'; // ID FIXO PARA ACESSO PÚBLICO
+        let vocabulary = [];
+        let currentWordIndex = -1;
+        
+        // DOM Elements
+        const wordListEl = document.getElementById('word-list');
+        const wordCountEl = document.getElementById('word-count');
+        const flashcardEl = document.getElementById('flashcard');
+        const cardFrontEl = flashcardEl.querySelector('.flip-card-front');
+        const cardBackEl = flashcardEl.querySelector('.flip-card-back');
+        const btnStart = document.getElementById('btn-start');
+        const btnNext = document.getElementById('btn-next');
+        const inputEnglish = document.getElementById('input-english');
+        const inputPortuguese = document.getElementById('input-portuguese');
+        const btnAddWord = document.getElementById('btn-add-word');
+        const addMessageEl = document.getElementById('add-message');
+        const userIdDisplayEl = document.getElementById('user-id-display');
+        const authStatusEl = document.getElementById('auth-status');
+        
+        // Modal elements
+        const modal = document.getElementById('app-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalBody = document.getElementById('modal-body');
+        const modalClose = document.getElementById('modal-close');
+
+        // Helper: Show Modal Message (Replaces alert())
+        const showModal = (title, message) => {
+            modalTitle.innerText = title;
+            modalBody.innerText = message;
+            modal.classList.remove('hidden');
+        };
+
+        modalClose.onclick = () => modal.classList.add('hidden');
+        
+        // --- Utility Functions ---
+
+        // Fisher-Yates Shuffle Algorithm (Randomizes an array in place)
+        const shuffleArray = (array) => {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        };
+
+        // --- View Management ---
+
+        const tabStudy = document.getElementById('tab-study');
+        const tabAdd = document.getElementById('tab-add');
+        const viewStudy = document.getElementById('view-study');
+        const viewAdd = document.getElementById('view-add');
+
+        const switchView = (viewId) => {
+            // Remove 'hidden' class from all views and add it based on selection
+            viewStudy.classList.add('hidden');
+            viewAdd.classList.add('hidden');
+            
+            // Remove active state from all tabs
+            const tabs = [tabStudy, tabAdd];
+            tabs.forEach(tab => {
+                tab.classList.remove('border-indigo-600', 'text-indigo-600');
+                tab.classList.add('text-gray-500', 'border-transparent');
+            });
+
+            // Set active state for the selected view
+            if (viewId === 'study') {
+                viewStudy.classList.remove('hidden');
+                tabStudy.classList.add('border-indigo-600', 'text-indigo-600');
+                tabStudy.classList.remove('text-gray-500', 'border-transparent');
+            } else if (viewId === 'add') {
+                viewAdd.classList.remove('hidden');
+                tabAdd.classList.add('border-indigo-600', 'text-indigo-600');
+                tabAdd.classList.remove('text-gray-500', 'border-transparent');
+            }
+        };
+
+        // --- Event Listeners for Tabs ---
+        tabStudy.onclick = () => switchView('study');
+        tabAdd.onclick = () => switchView('add');
+
+        // --- Flashcard Logic ---
+
+        const updateFlashcard = (english, portuguese) => {
+            cardFrontEl.innerText = english;
+            cardBackEl.innerText = portuguese;
+            // Ensure card is flipped to the front (English side)
+            flashcardEl.querySelector('.flip-card-inner').style.transform = 'rotateY(0deg)';
+        };
+
+        const showNextWord = () => {
+            if (vocabulary.length === 0) {
+                updateFlashcard("Nenhuma palavra para estudar.", "");
+                btnStart.classList.remove('hidden');
+                btnNext.classList.add('hidden');
+                return;
+            }
+
+            currentWordIndex = (currentWordIndex + 1) % vocabulary.length;
+            const word = vocabulary[currentWordIndex];
+            updateFlashcard(word.english, word.portuguese);
+        };
+
+        btnStart.onclick = () => {
+            if (vocabulary.length === 0) {
+                showModal("Atenção", "Por favor, adicione algumas palavras na aba 'Adicionar Palavra' primeiro.");
+                return;
+            }
+            
+            // 1. Shuffle and reset index
+            shuffleArray(vocabulary);
+            currentWordIndex = -1;
+            
+            // 2. Hide Start, Show Next
+            btnStart.classList.add('hidden');
+            btnNext.classList.remove('hidden');
+            
+            // 3. Show first word
+            showNextWord();
+        };
+
+        btnNext.onclick = showNextWord;
+
+        flashcardEl.onclick = () => {
+            const innerCard = flashcardEl.querySelector('.flip-card-inner');
+            // Toggle flip effect
+            if (innerCard.style.transform === 'rotateY(180deg)') {
+                innerCard.style.transform = 'rotateY(0deg)';
+            } else {
+                innerCard.style.transform = 'rotateY(180deg)';
+            }
+        };
+
+        // --- Firestore Interaction ---
+
+        const VOCAB_COLLECTION = 'vocabulary'; 
+
+        const setupFirestoreListener = () => {
+            // Não precisa de verificação de userId, pois ele é fixo
+            
+            // Database path: /artifacts/{appId}/users/{userId}/vocabulary
+            const vocabRef = collection(db, 'artifacts', appId, 'users', userId, VOCAB_COLLECTION);
+            
+            // Query: Listen to all documents in the user's vocabulary collection
+            const q = query(vocabRef);
+
+            // Real-time listener
+            onSnapshot(q, (snapshot) => {
+                vocabulary = [];
+                wordListEl.innerHTML = ''; // Clear list display
+                
+                snapshot.forEach((doc) => {
+                    const wordData = doc.data();
+                    vocabulary.push({ id: doc.id, ...wordData });
+
+                    // Update UI List
+                    const listItem = document.createElement('li');
+                    listItem.className = 'py-1 border-b last:border-b-0 flex justify-between';
+                    listItem.innerHTML = `
+                        <span class="font-medium">${wordData.english}</span>
+                        <span class="text-gray-500">(${wordData.portuguese})</span>
+                    `;
+                    wordListEl.appendChild(listItem);
+                });
+                
+                wordCountEl.innerText = vocabulary.length;
+                
+                // Reset study view on update
+                updateFlashcard(vocabulary.length > 0 ? "Clique em 'Iniciar Estudo'" : "Adicione palavras para começar.", "");
+                
+                console.log(`[Firestore] Vocabulário atualizado. Total: ${vocabulary.length}`);
+            }, (error) => {
+                console.error("Erro ao ouvir o Firestore:", error);
+            });
+        };
+
+        btnAddWord.onclick = async () => {
+            const english = inputEnglish.value.trim();
+            const portuguese = inputPortuguese.value.trim();
+
+            if (!english || !portuguese) {
+                addMessageEl.innerHTML = '<span class="text-red-500">Ambos os campos são obrigatórios.</span>';
+                return;
+            }
+
+            // A checagem de userId não é mais necessária, pois ele é fixo
+            // O botão está habilitado e o userId fixo 'PUBLIC_USER' é usado
+
+            try {
+                // Database path: /artifacts/{appId}/users/{userId}/vocabulary
+                const vocabRef = collection(db, 'artifacts', appId, 'users', userId, VOCAB_COLLECTION);
+                
+                await addDoc(vocabRef, {
+                    english: english,
+                    portuguese: portuguese,
+                    createdAt: serverTimestamp()
+                });
+
+                addMessageEl.innerHTML = '<span class="text-green-600">Palavra salva com sucesso!</span>';
+                inputEnglish.value = '';
+                inputPortuguese.value = '';
+
+            } catch (e) {
+                console.error("Erro ao adicionar documento: ", e);
+                addMessageEl.innerHTML = '<span class="text-red-600">Erro ao salvar. Verifique a conexão.</span>';
+            }
+        };
+
+        // --- Initialization and Immediate Access ---
+
+        const startApp = async () => { 
+            if (!firebaseConfig.apiKey) {
+                console.error("Firebase Configuração ausente. Verifique __firebase_config.");
+                authStatusEl.innerText = "ERRO: Configuração ausente";
+                return;
+            }
+
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            
+            // Não há autenticação, então chamamos o listener e habilitamos o botão imediatamente
+            setupFirestoreListener();
+
+            // Habilitar o botão e mudar o estilo imediatamente
+            btnAddWord.disabled = false;
+            btnAddWord.classList.remove('bg-gray-400', 'cursor-not-allowed');
+            btnAddWord.classList.add('bg-blue-600', 'hover:bg-blue-700', 'transform', 'hover:scale-105');
+            btnAddWord.innerText = "Salvar Palavra";
+            
+            // Set initial view
+            switchView('study');
+        };
+
+        startApp(); 
+
+    </script>
+</body>
+</html>
