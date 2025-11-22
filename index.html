@@ -131,7 +131,15 @@
     <script type="module">
         // Global variables for Firebase Config (MUST BE USED)
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+            const firebaseConfig = {
+            apiKey: "AIzaSy...",
+            authDomain: "seu-projeto-123.firebaseapp.com",
+            projectId: "seu-projeto-123",
+            storageBucket: "...",
+            messagingSenderId: "...",
+            appId: "..."
+            };
+        
         // Removed initialAuthToken since we are not authenticating
 
         // Firebase Imports
